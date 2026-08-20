@@ -2,7 +2,7 @@
 
 FLEET is delivery: the markup, head tags, and config that make a shipped page load fast and stable. A page can look finished and still be slow and janky, an oversized hero image that arrives late, content that jumps as images and fonts load, a render blocked behind scripts. That damage is invisible until measured, which is exactly when a fast build skips it. FLEET emits the correct markup and configuration, and audits a page for the misses, against the Core Web Vitals (Largest Contentful Paint, Cumulative Layout Shift, Interaction to Next Paint).
 
-It is **in progress** toward its delivery set (see the scope note). This is Tier 1: the responsive-image and picture emitter, with reserved dimensions and correct scheduling. Resource hints, fonts, a cache-header config generator, and a delivery auditor follow.
+It is **in progress** toward its delivery set (see the scope note). Built so far: Tier 1, the responsive-image and picture emitter with reserved dimensions and correct scheduling; and Tier 2, resource-hint and font head tags plus a cache-header config generator. A delivery auditor follows (Tier 3).
 
 ## What FLEET is, and is not
 
@@ -51,6 +51,37 @@ import { Img, Picture, srcset } from 'fleet-ui/react'
 ## The LCP image rule
 
 The single most common delivery anti-pattern is lazy-loading the Largest Contentful Paint image, the hero, which delays the very element that defines the metric. FLEET makes the choice explicit: mark the LCP image `priority: true` (eager, `fetchpriority="high"`) and mark offscreen images `lazy: true`. An image that is neither is left at the browser default (eager), which is safe for the LCP image. Always set `width` and `height` so the box is reserved and nothing shifts as the image loads.
+
+## Head tags and cache config
+
+Resource hints, font preloads, and font-face blocks are head and CSS strings; the cache-header generator renders the correct pattern into a named host's config format.
+
+```js
+import { hints, preconnect, fontPreload, fontFace, cacheHeaders } from 'fleet-ui'
+
+// Resource hints: preconnect for critical origins, preload for late-discovered assets.
+hints([
+  { rel: 'preconnect', href: 'https://cdn.example.com', crossorigin: true },
+  { rel: 'preload', href: '/app.js', as: 'script' },
+])
+fontPreload('/fonts/inter.woff2')
+
+// A zero-shift fallback face (the size-adjust value is measured, so you pass it):
+fontFace({ family: "'Inter Fallback'", src: 'local("Arial")', display: 'swap', sizeAdjust: '107%' })
+
+// Cache headers: revalidate HTML, cache hashed assets for a year as immutable.
+cacheHeaders('netlify')   // or 'vercel', 'nginx'
+```
+
+In React, `Hints` renders the link tags (and `fontFace` and `cacheHeaders` are re-exported as the string generators):
+
+```tsx
+import { Hints } from 'fleet-ui/react'
+
+<Hints hints={[{ rel: 'preconnect', href: 'https://cdn.example.com', crossorigin: true }]} />
+```
+
+The cache config is a build-time file and the font-face is CSS, so neither has a React component; call the generator and write its output.
 
 ## Part of the Polymathie family
 

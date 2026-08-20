@@ -36,3 +36,39 @@ export function Picture(data: PictureData): ReactElement
 
 /** Build a srcset string from a base path and widths, e.g. srcset('photo.jpg', [400, 800]). */
 export function srcset(base: string, widths?: number[], name?: (w: number) => string): string
+
+export interface HintSpec {
+  rel: 'preconnect' | 'dns-prefetch' | 'preload' | 'modulepreload' | (string & {})
+  href: string
+  as?: string
+  type?: string
+  crossorigin?: boolean | string
+  fetchpriority?: 'high' | 'low' | 'auto'
+}
+export interface HintsProps { hints: HintSpec[] }
+/** Render resource-hint link tags. React 19 hoists them to <head>. */
+export function Hints(props: HintsProps): ReactElement
+
+export interface FontFaceData {
+  family: string
+  src?: string
+  display?: 'auto' | 'block' | 'swap' | 'fallback' | 'optional'
+  weight?: string | number
+  style?: string
+  sizeAdjust?: string
+  ascentOverride?: string
+  descentOverride?: string
+  lineGapOverride?: string
+}
+/** Build an @font-face CSS block (returned as CSS text). */
+export function fontFace(data: FontFaceData): string
+
+export type CacheTarget = 'netlify' | 'vercel' | 'nginx'
+export interface CacheOptions {
+  assetGlob?: string
+  immutable?: string
+  html?: string
+  assetExt?: string
+}
+/** Generate cache-header config for a named host (returned as config text). */
+export function cacheHeaders(target?: CacheTarget, opts?: CacheOptions): string

@@ -2,9 +2,24 @@
 // elements. Img reserves dimensions and schedules loading correctly; Picture
 // negotiates formats. The srcset helper is re-exported from the core. No build step.
 
-import { createElement as h } from 'react'
+import { createElement as h, Fragment } from 'react'
 
-export { srcset } from '../fleet.js'
+// srcset and the string generators (fontFace, cacheHeaders, the hint helpers)
+// are re-exported from the core; they return strings, so they have no component.
+export { srcset, fontFace, cacheHeaders } from '../fleet.js'
+
+// Render resource-hint <link> tags. React 19 hoists them to <head>.
+export function Hints({ hints = [] }) {
+  return h(Fragment, null, ...hints.map((hint, i) => h('link', {
+    key: i,
+    rel: hint.rel,
+    href: hint.href,
+    as: hint.as,
+    type: hint.type,
+    crossOrigin: hint.crossorigin === true ? 'anonymous' : (hint.crossorigin || undefined),
+    fetchPriority: hint.fetchpriority,
+  })))
+}
 
 export function Img({ src, alt = '', width, height, srcset, sizes, decoding = 'async', priority, lazy, className, ...rest }) {
   const props = { src, alt, width, height, srcSet: srcset, sizes, decoding, className, ...rest }

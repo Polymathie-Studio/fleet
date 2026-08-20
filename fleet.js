@@ -68,3 +68,77 @@ export function srcset(base, widths = [], name) {
   const fn = name || ((w) => `${stem}-${w}${ext}`);
   return widths.map((w) => `${fn(w)} ${w}w`).join(', ');
 }
+
+// --- Tier 2: resource hints, fonts, and cache config ---
+
+// Emit resource-hint <link> tags from a list of { rel, href, as, type,
+// crossorigin, fetchpriority }. Use preconnect for the few critical origins,
+// dns-prefetch for the rest, preload with a correct `as` (and crossorigin for
+// fonts) for late-discovered critical assets, and modulepreload for ES modules.
+export function hints(list = []) {
+  return list.map((h) => {
+    const a = [`rel="${esc(h.rel)}"`, `href="${esc(h.href)}"`];
+    if (h.as) a.push(`as="${esc(h.as)}"`);
+    if (h.type) a.push(`type="${esc(h.type)}"`);
+    if (h.crossorigin != null && h.crossorigin !== false) {
+      a.push(h.crossorigin === true ? 'crossorigin' : `crossorigin="${esc(h.crossorigin)}"`);
+    }
+    if (h.fetchpriority) a.push(`fetchpriority="${esc(h.fetchpriority)}"`);
+    return `<link ${a.join(' ')}>`;
+  }).join('\n');
+}
+
+export const preconnect = (href, crossorigin) => hints([{ rel: 'preconnect', href, crossorigin }]);
+export const dnsPrefetch = (href) => hints([{ rel: 'dns-prefetch', href }]);
+export const preload = (href, as, opts = {}) => hints([{ rel: 'preload', href, as, ...opts }]);
+export const modulePreload = (href) => hints([{ rel: 'modulepreload', href }]);
+
+// Emit a font preload link. Fonts are CORS-mode fetches, so crossorigin is
+// required, or the browser fetches the font twice.
+export function fontPreload(href, opts = {}) {
+  return hints([{ rel: 'preload', href, as: 'font', type: opts.type || 'font/woff2', crossorigin: opts.crossorigin || true }]);
+}
+
+// Build an @font-face CSS block (returned as CSS text, not a head tag). Set
+// font-display to control the swap; use the metric overrides on a fallback face
+// so swapping in the web font does not shift layout. Computing the exact
+// size-adjust value requires measuring both fonts; pass it in.
+export function fontFace(d = {}) {
+  const lines = ['@font-face {', `  font-family: ${d.family};`];
+  if (d.src) lines.push(`  src: ${d.src};`);
+  lines.push(`  font-display: ${d.display || 'swap'};`);
+  if (d.weight) lines.push(`  font-weight: ${d.weight};`);
+  if (d.style) lines.push(`  font-style: ${d.style};`);
+  if (d.sizeAdjust) lines.push(`  size-adjust: ${d.sizeAdjust};`);
+  if (d.ascentOverride) lines.push(`  ascent-override: ${d.ascentOverride};`);
+  if (d.descentOverride) lines.push(`  descent-override: ${d.descentOverride};`);
+  if (d.lineGapOverride) lines.push(`  line-gap-override: ${d.lineGapOverride};`);
+  lines.push('}');
+  return lines.join('\n');
+}
+
+// Generate cache-header config for a named host. The correct pattern is to
+// revalidate HTML on every load and to cache content-hashed static assets for a
+// year as immutable, so a byte change (a new hash) busts the cache safely.
+// FLEET writes the config; the host applies it. Targets: netlify, vercel, nginx.
+export function cacheHeaders(target = 'netlify', opts = {}) {
+  const assetGlob = opts.assetGlob || '/assets/*';
+  const immutable = opts.immutable || 'public, max-age=31536000, immutable';
+  const html = opts.html || 'no-cache';
+  if (target === 'netlify') {
+    return `${assetGlob}\n  Cache-Control: ${immutable}\n/*.html\n  Cache-Control: ${html}\n`;
+  }
+  if (target === 'vercel') {
+    return JSON.stringify({
+      headers: [
+        { source: assetGlob.replace(/\*/g, '(.*)'), headers: [{ key: 'Cache-Control', value: immutable }] },
+        { source: '/(.*)\\.html', headers: [{ key: 'Cache-Control', value: html }] },
+      ],
+    }, null, 2);
+  }
+  if (target === 'nginx') {
+    const assetExt = opts.assetExt || 'js|css|woff2|png|jpg|jpeg|svg|avif|webp|gif|ico';
+    return `location ~* \\.(${assetExt})$ {\n  add_header Cache-Control "${immutable}";\n}\nlocation ~* \\.html$ {\n  add_header Cache-Control "${html}";\n}\n`;
+  }
+  throw new Error(`cacheHeaders: unknown target "${target}" (expected netlify, vercel, or nginx)`);
+}
