@@ -72,3 +72,10 @@ export interface CacheOptions {
 }
 /** Generate cache-header config for a named host (returned as config text). */
 export function cacheHeaders(target?: CacheTarget, opts?: CacheOptions): string
+
+export interface SpeculationRulesProps {
+  prefetch?: object | object[]
+  prerender?: object | object[]
+}
+/** Render a Speculation Rules script. Emerging and Chromium-only; degrades to nothing elsewhere. */
+export function SpeculationRules(props: SpeculationRulesProps): ReactElement

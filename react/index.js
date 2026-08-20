@@ -21,6 +21,16 @@ export function Hints({ hints = [] }) {
   })))
 }
 
+// Render a Speculation Rules script (emerging, Chromium-only; degrades to
+// nothing elsewhere). Injected raw, since React would escape the JSON text.
+export function SpeculationRules({ prefetch, prerender }) {
+  const payload = {}
+  if (prefetch) payload.prefetch = Array.isArray(prefetch) ? prefetch : [prefetch]
+  if (prerender) payload.prerender = Array.isArray(prerender) ? prerender : [prerender]
+  const json = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')
+  return h('script', { type: 'speculationrules', dangerouslySetInnerHTML: { __html: json } })
+}
+
 export function Img({ src, alt = '', width, height, srcset, sizes, decoding = 'async', priority, lazy, className, ...rest }) {
   const props = { src, alt, width, height, srcSet: srcset, sizes, decoding, className, ...rest }
   if (priority) { props.loading = 'eager'; props.fetchPriority = 'high' }

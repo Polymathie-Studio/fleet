@@ -142,3 +142,71 @@ export function cacheHeaders(target = 'netlify', opts = {}) {
   }
   throw new Error(`cacheHeaders: unknown target "${target}" (expected netlify, vercel, or nginx)`);
 }
+
+// --- Tier 3: the delivery auditor and Speculation Rules ---
+
+// Escape a JSON payload for safe inclusion inside a <script> block.
+const scriptJson = (obj) => JSON.stringify(obj).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
+
+// Parse the attributes of every tag of one kind in an HTML string. A lightweight
+// scan, not a full parser; it reads the served markup, which is the point.
+function tagAttrs(html, tag) {
+  const out = [];
+  const re = new RegExp('<' + tag + '\\b([^>]*)>', 'gi');
+  let m;
+  while ((m = re.exec(html))) {
+    const attrs = {};
+    const ar = /([\w:-]+)\s*=\s*"([^"]*)"|([\w:-]+)\s*=\s*'([^']*)'/g;
+    let a;
+    while ((a = ar.exec(m[1]))) {
+      if (a[1] != null) attrs[a[1].toLowerCase()] = a[2];
+      else attrs[a[3].toLowerCase()] = a[4];
+    }
+    out.push(attrs);
+  }
+  return out;
+}
+
+// Audit a page's HTML for the delivery misses, returning
+// { ok, errors, warnings, passed }. Delivery issues are advisory, so most land
+// as warnings. Audit the served markup: to judge the LCP image, this reads
+// source order, since a static scan cannot measure the real LCP element.
+export function audit(html = '') {
+  const errors = [], warnings = [], passed = [];
+  const warn = (code, message) => warnings.push({ level: 'warning', code, message });
+  const pass = (code, message) => passed.push({ level: 'pass', code, message });
+
+  const imgs = tagAttrs(html, 'img');
+  const unsized = imgs.filter((t) => !('width' in t) || !('height' in t));
+  if (imgs.length && !unsized.length) pass('img-dimensions', 'All images set width and height.');
+  else if (unsized.length) warn('img-dimensions', `${unsized.length} of ${imgs.length} images lack width or height; they can shift layout (CLS).`);
+
+  if (imgs.length && imgs[0].loading === 'lazy') warn('lcp-lazy', 'The first image is loading="lazy"; if it is the LCP image this delays it. Mark the LCP image priority (eager, high fetchpriority).');
+
+  const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  const headHtml = headMatch ? headMatch[1] : html;
+  const headScripts = [...headHtml.matchAll(/<script\b([^>]*)>/gi)].map((m) => m[1]);
+  const blocking = headScripts.filter((a) => /\bsrc=/.test(a) && !/\bdefer\b/.test(a) && !/\basync\b/.test(a) && !/type=["']module["']/.test(a));
+  if (blocking.length) warn('render-blocking', `${blocking.length} script(s) in <head> with a src and neither defer nor async block rendering.`);
+  else pass('render-blocking', 'No render-blocking scripts in <head>.');
+
+  const styles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n');
+  const faces = styles.split('@font-face').slice(1);
+  const noDisplay = faces.filter((f) => !/font-display/i.test(f.split('}')[0]));
+  if (noDisplay.length) warn('font-display', `${noDisplay.length} inline @font-face without font-display; text may hide or shift on load.`);
+
+  return { ok: errors.length === 0, errors, warnings, passed };
+}
+
+// Generate a Speculation Rules <script> for prefetch or prerender. Emerging and
+// Chromium-only (not Baseline), so ship it as progressive enhancement: it does
+// nothing in browsers that do not support it. Inline rules also need a CSP that
+// allows them (script-src 'inline-speculation-rules', or a hash or nonce). Pass
+// { prefetch, prerender } where each is a rule object or an array of them.
+export function speculationRules(rules = {}) {
+  const payload = {};
+  for (const action of ['prefetch', 'prerender']) {
+    if (rules[action]) payload[action] = Array.isArray(rules[action]) ? rules[action] : [rules[action]];
+  }
+  return `<script type="speculationrules">${scriptJson(payload)}</script>`;
+}

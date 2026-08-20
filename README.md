@@ -2,7 +2,7 @@
 
 FLEET is delivery: the markup, head tags, and config that make a shipped page load fast and stable. A page can look finished and still be slow and janky, an oversized hero image that arrives late, content that jumps as images and fonts load, a render blocked behind scripts. That damage is invisible until measured, which is exactly when a fast build skips it. FLEET emits the correct markup and configuration, and audits a page for the misses, against the Core Web Vitals (Largest Contentful Paint, Cumulative Layout Shift, Interaction to Next Paint).
 
-It is **in progress** toward its delivery set (see the scope note). Built so far: Tier 1, the responsive-image and picture emitter with reserved dimensions and correct scheduling; and Tier 2, resource-hint and font head tags plus a cache-header config generator. A delivery auditor follows (Tier 3).
+It covers its primitizable delivery set across Tiers 1 to 3: Tier 1, the responsive-image and picture emitter with reserved dimensions and correct scheduling; Tier 2, resource-hint and font head tags plus a cache-header config generator; and Tier 3, a delivery auditor and a Speculation Rules generator. It stays **0.x** until a numbered release is cut.
 
 ## What FLEET is, and is not
 
@@ -82,6 +82,22 @@ import { Hints } from 'fleet-ui/react'
 ```
 
 The cache config is a build-time file and the font-face is CSS, so neither has a React component; call the generator and write its output.
+
+## Auditing a page
+
+`audit(html)` scans a page's HTML and returns `{ ok, errors, warnings, passed }`, flagging the delivery misses: images without width or height (which cause layout shift), a first image that is lazy-loaded (a likely LCP image delayed), render-blocking scripts in the head, and inline `@font-face` without `font-display`. Delivery issues are advisory, so most land as warnings.
+
+```js
+import { audit, speculationRules } from 'fleet-ui'
+
+const report = audit(serverHtmlString)
+report.warnings.forEach((w) => console.warn(w.code, w.message))
+
+// Speculation Rules (emerging, Chromium-only; degrades to nothing elsewhere):
+speculationRules({ prerender: { where: { href_matches: '/*' }, eagerness: 'moderate' } })
+```
+
+Like the other primitives' auditors, this is a lightweight scan of the served markup, not a full performance run; pair it with Lighthouse for field-accurate Core Web Vitals.
 
 ## Part of the Polymathie family
 
