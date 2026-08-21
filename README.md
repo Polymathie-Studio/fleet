@@ -1,5 +1,10 @@
 # FLEET
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/fleet-overview-dark.svg">
+  <img alt="FLEET overview: why it exists (a page can look finished and still be slow and janky, invisible until measured), what it emits (responsive image markup, resource hints and font tags, cache config, and a delivery auditor, against Core Web Vitals), its honest boundary (it emits and audits the markup and config but cannot encode a pixel, bundle a module, or set a header), and how it differs from perf plugins, framework defaults, a score, and nothing." src="assets/fleet-overview-light.svg" width="1200">
+</picture>
+
 FLEET is delivery: the markup, head tags, and config that make a shipped page load fast and stable. A page can look finished and still be slow and janky, an oversized hero image that arrives late, content that jumps as images and fonts load, a render blocked behind scripts. That damage is invisible until measured, which is exactly when a fast build skips it. FLEET emits the correct markup and configuration, and audits a page for the misses, against the Core Web Vitals (Largest Contentful Paint, Cumulative Layout Shift, Interaction to Next Paint).
 
 It covers its primitizable delivery set across Tiers 1 to 3: Tier 1, the responsive-image and picture emitter with reserved dimensions and correct scheduling; Tier 2, resource-hint and font head tags plus a cache-header config generator; and Tier 3, a delivery auditor and a Speculation Rules generator. It stays **0.x** until a numbered release is cut.
@@ -106,7 +111,7 @@ FLEET is one instrument in **DS4AI, the Design Suite for AI, from [Polymathie-St
 - **[TEMPER](https://github.com/Polymathie-Studio/temper)**: perceivable, color and design tokens
 - **[GRASP](https://github.com/Polymathie-Studio/grasp)**: operable, interaction components
 - **[LUCID](https://github.com/Polymathie-Studio/lucid)** + **[GRACE](https://github.com/Polymathie-Studio/grace)**: honest off the happy path, disclosure and state components
-- **[HASP](https://github.com/Polymathie-Studio/hasp)**: key privacy, bring-your-own-key
+- **[HASP](https://github.com/Polymathie-Studio/hasp)**: hardened, client-surface security posture
 - **[BEACON](https://github.com/Polymathie-Studio/beacon)**: findable, head metadata and site files
 - **[FLEET](https://github.com/Polymathie-Studio/fleet)**: fast and stable, delivery
 
